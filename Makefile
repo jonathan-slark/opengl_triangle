@@ -5,7 +5,7 @@ CPPFLAGS = -D_POSIX_C_SOURCE=200809L -DDEBUG -DVK_USE_PLATFORM_WIN32_KHR
 #CPPFLAGS = -D_POSIX_C_SOURCE=200809L -DVK_USE_PLATFORM_WIN32_KHR
 CFLAGS   = -I/mingw64/include -std=c99 -pedantic -Wall -Wextra -g -O0
 #CFLAGS   = -I/mingw64/include -std=c99 -pedantic -Wall -Wextra -O2
-LDFLAGS  = -L/mingw64/lib -mwindows -lvulkan-1
+LDFLAGS  = -L/mingw64/lib -mwindows -lopengl32
 GLSLC    = glslc
 
 BIN = triangle.exe
@@ -26,6 +26,10 @@ $(BIN): $(OBJ)
 
 %.spv: %.glsl
 	$(GLSLC) $< -o $@
+
+al_win32.o: al_win32.c al.h util.h
+triangle.o: triangle.c al.h config.h util.h
+util.o: util.c util.h
 
 clean:
 	@rm -f $(BIN) $(OBJ) $(SPV)

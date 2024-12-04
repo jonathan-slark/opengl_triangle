@@ -7,11 +7,10 @@
 int
 main(void)
 {
-    if (!al_createwindow(title, width, height))
-	terminate("Failed to create window.\n");
+    al_createwindow(title, width, height);
 
     while (al_pollevents()) {
-	/*al_drawframe();*/
+	al_drawframe();
     }
 
     return EXIT_SUCCESS;
