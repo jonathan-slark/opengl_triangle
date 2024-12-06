@@ -15,8 +15,7 @@ OBJ = $(SRC:.c=.o)
 GLSL = shaders/vertex.glsl shaders/fragment.glsl
 SPV  = $(GLSL:.glsl=.spv)
 
-#all: $(BIN) $(SPV)
-all: $(BIN)
+all: $(BIN) $(SPV)
 
 $(BIN): $(OBJ)
 	$(CC) -o $@ $(OBJ) $(LDFLAGS)
