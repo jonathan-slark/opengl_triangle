@@ -1,12 +1,13 @@
 .POSIX:
 
-CC       = gcc
-CPPFLAGS = -D_POSIX_C_SOURCE=200809L
+# MSYS2
+CC        = gcc
+CPPFLAGS  = -D_POSIX_C_SOURCE=200809L
 #CPPFLAGS = -D_POSIX_C_SOURCE=200809L -DNDEBUG
-CFLAGS   = -std=c99 -pedantic -Wall -Wextra -g -O0
+CFLAGS    = -std=c99 -pedantic -Wall -Wextra -g -O0
 #CFLAGS   = -std=c99 -pedantic -Wall -Wextra -O2
-LDFLAGS  = -mwindows -lopengl32 -lglfw3
-GLSLC    = glslc
+LDFLAGS   = -mwindows -lopengl32 -lglfw3
+GLSLC     = glslc
 
 BIN = triangle.exe
 SRC = triangle.c
@@ -26,7 +27,7 @@ $(BIN): $(OBJ)
 %.spv: %.glsl
 	$(GLSLC) $< -o $@
 
-triangle.o: triangle.c config.h
+triangle.o: triangle.c glad.h config.h
 
 clean:
 	@rm -f $(BIN) $(OBJ) $(SPV)

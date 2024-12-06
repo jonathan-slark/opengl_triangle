@@ -8,6 +8,7 @@
 #include "config.h"
 
 /* Macros */
+#define COUNT(x)  (sizeof(x) / sizeof(x[0]))
 #define UNUSED(x) (void) (x)
 
 /* Function prototypes */
@@ -17,6 +18,11 @@ static void term(int status, const char *fmt, ...);
 static void keycallback(GLFWwindow *window, int key, int scancode, int action,
 	int mods);
 static void resizecallback(GLFWwindow* window, int width, int height);
+#ifndef NDEBUG
+void APIENTRY gldebugoutput(GLenum source, GLenum type, unsigned int id,
+	GLenum severity, GLsizei length, const char *message,
+	const void *userparam);
+#endif /* !NDEBUG */
 static void createwindow(void);
 static char *createshadercode(const char *filename, size_t *size);
 static void deleteshadercode(char **code);
@@ -24,8 +30,18 @@ static int loadshaders(void);
 static void drawframe(void);
 
 /* Variables */
+static const unsigned int ignorelog[] = {
+    131185 /* Buffer info */
+};
+static const float vertices[] = {
+    -0.5f, -0.5f, 0.0f,
+    0.5f, -0.5f, 0.0f,
+    0.0f,  0.5f, 0.0f
+};
+static const unsigned int verticecount = 3;
 static const char readonlybinary[] = "rb";
 static GLFWwindow *window;
+static GLuint program, vbo, vao;
 
 /* Function implementations */
 
@@ -54,6 +70,9 @@ term(int status, const char *fmt, ...)
     if (window)
 	glfwDestroyWindow(window);
 
+    glDeleteVertexArrays(1, &vao);
+    glDeleteBuffers(1, &vbo);
+    glDeleteProgram(program);
     glfwTerminate();
 
     if (fmt) {
@@ -83,14 +102,51 @@ resizecallback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
+#ifndef NDEBUG
+
+int
+ismember(const unsigned int array[], size_t size, unsigned int value)
+{
+    size_t i;
+
+    for (i = 0; i < size; i++)
+	if (array[i] == value)
+	    return 1;
+
+    return 0;
+}
+
+void APIENTRY gldebugoutput(GLenum source, GLenum type, unsigned int id,
+	GLenum severity, GLsizei length, const char *message,
+	const void *userparam)
+{
+    UNUSED(source);
+    UNUSED(type);
+    UNUSED(severity);
+    UNUSED(length);
+    UNUSED(userparam);
+
+    if (ismember(ignorelog, sizeof(ignorelog), id))
+	return;
+
+    fprintf(stderr, "%u: %s\n", id, message);
+}
+#endif /* !NDEBUG */
+
 void
 createwindow(void)
 {
-    int version;
+    int version, flags;
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, openglmajor);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, openglminor);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+#ifndef NDEBUG
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+#endif /* !NDEBUG */
     if (!(window = glfwCreateWindow(width, height, title, NULL, NULL)))
 	term(EXIT_FAILURE, NULL);
 
@@ -99,13 +155,24 @@ createwindow(void)
     if (!(version = gladLoadGL(glfwGetProcAddress)))
 	term(EXIT_FAILURE, "Failed to load OpenGL.\n");
 #ifndef NDEBUG
-    fprintf(stderr, "Loaded OpenGL %d.%d\n", GLAD_VERSION_MAJOR(version),
+    fprintf(stderr, "Loaded OpenGL %d.%d.\n", GLAD_VERSION_MAJOR(version),
 	    GLAD_VERSION_MINOR(version));
-#endif
+#endif /* !NDEBUG */
 
     glfwSetKeyCallback(window, keycallback);
     glfwSetFramebufferSizeCallback(window, resizecallback);
     glfwSwapInterval(1);
+
+#ifndef NDEBUG
+    glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
+    if (flags & GL_CONTEXT_FLAG_DEBUG_BIT) {
+	glEnable(GL_DEBUG_OUTPUT);
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+	glDebugMessageCallback(gldebugoutput, NULL);
+	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL,
+		GL_TRUE);
+    }
+#endif /* !NDEBUG */
 }
 
 char *
@@ -137,53 +204,93 @@ deleteshadercode(char **code)
     free(*code);
 }
 
+GLuint
+createshaderbin(GLenum type, const char *code, size_t size)
+{
+    GLuint shader;
+    GLint iscompiled, maxlength;
+    GLchar *log;
+
+    shader = glCreateShader(type);
+    /* Requires OpenGL 4.6 */
+    glShaderBinary(1, &shader, GL_SHADER_BINARY_FORMAT_SPIR_V,
+	    (const void *) code, size);
+    glSpecializeShader(shader, (const GLchar*) shaderentry, 0, NULL,
+	    NULL);
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &iscompiled);
+    if (!iscompiled) {
+	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &maxlength);
+	if (maxlength) {
+	    log = (GLchar *) malloc(maxlength * sizeof(GLchar));
+	    glGetShaderInfoLog(shader, maxlength, &maxlength, &log[0]);
+	    fprintf(stderr, (char *) log);
+	    free(log);
+	    glDeleteShader(shader);
+	}
+	return 0;
+    }
+
+    return shader;
+}
+
 int
 loadshaders(void)
 {
     size_t vertexcodesize, fragmentcodesize;
-    char *vertexcode   = createshadercode(vertexspirv, &vertexcodesize);
-    char *fragmentcode = createshadercode(fragmentspirv, &fragmentcodesize);
-    GLuint vertexshader = glCreateShader(GL_VERTEX_SHADER);
-    GLuint fragmentshader = glCreateShader(GL_FRAGMENT_SHADER);
-    GLint iscompiled, maxlength;
+    char *vertexcode, *fragmentcode;
+    GLuint vertexshader, fragmentshader;
+    GLint islinked, maxlength;
     GLchar *log;
-
-    /* TODO: write createshadermodule */
-    glShaderBinary(1, &vertexshader, GL_SHADER_BINARY_FORMAT_SPIR_V,
-	    (const void *) vertexcode, vertexcodesize);
+    
+    vertexcode = createshadercode(vertexspirv, &vertexcodesize);
+    fragmentcode = createshadercode(fragmentspirv, &fragmentcodesize);
+    vertexshader = createshaderbin(GL_VERTEX_SHADER, vertexcode,
+	    vertexcodesize);
+    fragmentshader = createshaderbin(GL_FRAGMENT_SHADER, fragmentcode,
+	    fragmentcodesize);
     deleteshadercode(&vertexcode);
-    glSpecializeShader(vertexshader, (const GLchar*) shaderentry, 0, NULL,
-	    NULL);
-    glGetShaderiv(vertexshader, GL_COMPILE_STATUS, &iscompiled);
-    if (!iscompiled) {
-	glGetShaderiv(vertexshader, GL_INFO_LOG_LENGTH, &maxlength);
-	if (maxlength) {
-	    log = (GLchar *) malloc(maxlength * sizeof(GLchar));
-	    glGetShaderInfoLog(vertexshader, maxlength, &maxlength, &log[0]);
-	    fprintf(stderr, "%s\n", (char *) log);
-	    free(log);
-	    return 0;
-	}
-    }
-
-    glShaderBinary(1, &fragmentshader, GL_SHADER_BINARY_FORMAT_SPIR_V,
-	    (const void *) fragmentcode, fragmentcodesize);
     deleteshadercode(&fragmentcode);
-    glSpecializeShader(fragmentshader, (const GLchar*) shaderentry, 0, NULL,
-	    NULL);
-    glGetShaderiv(fragmentshader, GL_COMPILE_STATUS, &iscompiled);
-    if (!iscompiled) {
-	glGetShaderiv(fragmentshader, GL_INFO_LOG_LENGTH, &maxlength);
+
+    if (!vertexshader || !fragmentshader)
+	return 0;
+
+    program = glCreateProgram();
+    glAttachShader(program, vertexshader);
+    glAttachShader(program, fragmentshader);
+    glLinkProgram(program);
+    glDeleteShader(vertexshader);
+    glDeleteShader(fragmentshader);
+
+    glGetProgramiv(program, GL_LINK_STATUS, (int *) &islinked);
+    if (!islinked) {
+	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxlength);
 	if (maxlength) {
 	    log = (GLchar *) malloc(maxlength * sizeof(GLchar));
-	    glGetShaderInfoLog(fragmentshader, maxlength, &maxlength, &log[0]);
-	    fprintf(stderr, "%s\n", (char *) log);
+	    glGetProgramInfoLog(program, maxlength, &maxlength, &log[0]);
+	    fprintf(stderr, (char *) log);
 	    free(log);
-	    return 0;
 	}
+	glDeleteProgram(program);
+	return 0;
     }
 
     return 1;
+}
+
+void
+loadvertices(void)
+{
+    int count = COUNT(vertices) / verticecount;
+
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);  
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, verticecount, GL_FLOAT, GL_FALSE,
+	    count * sizeof(float), (void *) 0);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0); 
 }
 
 void
@@ -191,6 +298,10 @@ drawframe(void)
 {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    glUseProgram(program);
+    glBindVertexArray(vao);
+    glDrawArrays(GL_TRIANGLES, 0, verticecount);
 
     glfwSwapBuffers(window);
 }
@@ -202,6 +313,7 @@ main(void)
     createwindow();
     if (!loadshaders())
 	term(EXIT_FAILURE, "Failed to load shaders.\n");
+    loadvertices();
 
     while (!glfwWindowShouldClose(window)) {
 	drawframe();
