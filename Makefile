@@ -1,13 +1,14 @@
 .POSIX:
 
 # MSYS2
-CC        = gcc
-CPPFLAGS  = -D_POSIX_C_SOURCE=200809L
-#CPPFLAGS = -D_POSIX_C_SOURCE=200809L -DNDEBUG
-CFLAGS    = -std=c99 -pedantic -Wall -Wextra -g -O0
-#CFLAGS   = -std=c99 -pedantic -Wall -Wextra -O2
-LDFLAGS   = -mwindows -lopengl32 -lglfw3
-GLSLC     = glslc
+CC         = gcc
+CPPFLAGS   = -D_POSIX_C_SOURCE=200809L
+#CPPFLAGS  = -D_POSIX_C_SOURCE=200809L -DNDEBUG
+CFLAGS     = -std=c99 -pedantic -Wall -Wextra -g -O0
+#CFLAGS    = -std=c99 -pedantic -Wall -Wextra -O2
+LDFLAGS    = -mwindows -lopengl32 -lglfw3
+GLSLC      = glslc
+GLSLCFLAGS = --target-env=opengl
 
 BIN = triangle.exe
 SRC = triangle.c
@@ -25,7 +26,7 @@ $(BIN): $(OBJ)
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $<
 
 %.spv: %.glsl
-	$(GLSLC) $< -o $@
+	$(GLSLC) $(GLSLCFLAGS) $< -o $@
 
 triangle.o: triangle.c glad.h config.h
 

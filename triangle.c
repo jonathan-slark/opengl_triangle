@@ -154,10 +154,6 @@ createwindow(void)
 
     if (!(version = gladLoadGL(glfwGetProcAddress)))
 	term(EXIT_FAILURE, "Failed to load OpenGL.\n");
-#ifndef NDEBUG
-    fprintf(stderr, "Loaded OpenGL %d.%d.\n", GLAD_VERSION_MAJOR(version),
-	    GLAD_VERSION_MINOR(version));
-#endif /* !NDEBUG */
 
     glfwSetKeyCallback(window, keycallback);
     glfwSetFramebufferSizeCallback(window, resizecallback);
