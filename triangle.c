@@ -34,19 +34,14 @@ static const unsigned int ignorelog[] = {
     131185 /* Buffer info */
 };
 static const float vertices[] = {
-     0.5f,  0.5f, 0.0f, /* top right */
-     0.5f, -0.5f, 0.0f, /* bottom right */
-    -0.5f, -0.5f, 0.0f, /* bottom left */
-    -0.5f,  0.5f, 0.0f  /* top left */
-};
-static const unsigned int indices[] = {
-    0, 1, 3, /* first triangle */
-    1, 2, 3  /* second triangle */
+    -0.5f, -0.5f, 0.0f,
+    0.5f, -0.5f, 0.0f,
+    0.0f,  0.5f, 0.0f
 };
 static const unsigned int verticecount = 3;
 static const char readonlybinary[] = "rb";
 static GLFWwindow *window;
-static GLuint program, vbo, vao, ebo;
+static GLuint program, vbo, vao;
 
 /* Function implementations */
 
@@ -77,7 +72,6 @@ term(int status, const char *fmt, ...)
 
     glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &vbo);
-    glDeleteBuffers(1, &ebo);
     glDeleteProgram(program);
     glfwTerminate();
 
@@ -286,25 +280,17 @@ loadshaders(void)
 void
 loadvertices(void)
 {
+    int count = COUNT(vertices) / verticecount;
+
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
-    glGenBuffers(1, &ebo);
     glBindVertexArray(vao);
-
     glBindBuffer(GL_ARRAY_BUFFER, vbo);  
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
-	    GL_STATIC_DRAW);
-
     glVertexAttribPointer(0, verticecount, GL_FLOAT, GL_FALSE,
-	    verticecount * sizeof(float), (void *) 0);
+	    count * sizeof(float), (void *) 0);
     glEnableVertexAttribArray(0);
-
     glBindBuffer(GL_ARRAY_BUFFER, 0); 
-
-    /* glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); */
 }
 
 void
@@ -315,7 +301,7 @@ drawframe(void)
 
     glUseProgram(program);
     glBindVertexArray(vao);
-    glDrawElements(GL_TRIANGLES, COUNT(indices), GL_UNSIGNED_INT, 0);
+    glDrawArrays(GL_TRIANGLES, 0, verticecount);
 
     glfwSwapBuffers(window);
 }
