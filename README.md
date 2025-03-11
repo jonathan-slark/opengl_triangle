@@ -38,13 +38,13 @@ make run
 
 ## Project Structure
 ```
-├── [triangle.c](triangle.c)          # Main source file
-├── [glad.h](glad.h)             # OpenGL loader
-├── [config.h](config.h)           # Configuration constants
-├── [Makefile](Makefile)          # Build system
+├── triangle.c        # Main source file
+├── glad.h            # OpenGL loader
+├── config.h          # Configuration constants
+├── Makefile          # Build system
 └── shaders/          # GLSL shader files
-    ├── [vertex.glsl](shaders/vertex.glsl)   # Vertex shader
-    └── [fragment.glsl](shaders/fragment.glsl) # Fragment shader
+    ├── vertex.glsl   # Vertex shader
+    └── fragment.glsl # Fragment shader
 ```
 
 ## Shader Compilation
