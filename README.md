@@ -13,7 +13,7 @@ A minimal OpenGL example that renders a triangle using modern OpenGL 4.6 and SPI
 - Debug output support
 - Minimal dependencies
 
-## Requirements
+## Build Requirements
 
 - MSYS2 environment
 - OpenGL 4.6 capable GPU
