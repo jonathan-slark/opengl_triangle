@@ -70,6 +70,14 @@ The project uses SPIR-V shaders, which are compiled from GLSL using glslc. The M
 
 When built without -DNDEBUG, the program enables OpenGL debug output for easier development and troubleshooting.
 
+## Postmortem
+
+I initially attempted to create an OpenGL context using Win32, but the process quickly became frustrating. The challenges—such as having to create a dummy context before the real one due to limited documentation—led me to switch to GLFW. With GLFW handling the low-level OS intricacies, the setup became much simpler and naturally cross-platform.
+
+I chose to reuse SPIR-V shaders, following the approach from the vulkan-triangle project. Keep in mind that this requires an OpenGL 4.6 capable GPU, which is an important consideration.
+
+Compared to vulkan-triangle, opengl-triangle not only has significantly fewer lines of code but also abstracts much of the hardware complexity. This makes it a more accessible option if you don't need the full power and granularity of Vulkan.
+
 ## Credits
 
 - Based on [Learn OpenGL](https://learnopengl.com/Getting-started/Hello-Triangle) by Joey de Vries
