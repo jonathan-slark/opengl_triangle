@@ -23,9 +23,9 @@ Compared to vulkan-triangle, opengl-triangle not only has significantly fewer li
 ## Building
 
 The following MSYS2 packages are required:
-make
-mingw-w64-ucrt-x86_64-gcc
-mingw-w64-ucrt-x86_64-glfw
+- make
+- mingw-w64-ucrt-x86_64-gcc
+- mingw-w64-ucrt-x86_64-glfw
 
 The project uses the `glslc.exe` compiler from the Vulkan SDK for shader compilation.
 
